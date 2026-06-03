@@ -4,7 +4,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from pyvikunja.models.task import Task
 
 from custom_components.vikunja import DOMAIN, LOGGER
-from custom_components.vikunja.const import DATA_TASKS_KEY
+from custom_components.vikunja.const import DATA_BUCKETS_KEY, DATA_TASKS_KEY
 
 
 class VikunjaTaskEntity(CoordinatorEntity):
@@ -20,6 +20,12 @@ class VikunjaTaskEntity(CoordinatorEntity):
     @property
     def task(self) -> Task:
         return self._coordinator.data[DATA_TASKS_KEY][self._task_id]
+
+    def project_bucket_data(self) -> dict | None:
+        """Kanban bucket cache for this task's project, if the project has a kanban view."""
+        if not self._coordinator.data:
+            return None
+        return self._coordinator.data.get(DATA_BUCKETS_KEY, {}).get(self.task.project_id)
 
     def name_prefix(self):
         return f"{self.task.title}"

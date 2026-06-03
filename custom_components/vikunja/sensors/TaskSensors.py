@@ -388,3 +388,67 @@ class VikunjaTaskLabelsSensor(VikunjaTaskEntity, SensorEntity):
     @property
     def unique_id(self) -> str:
         return self.id_prefix() + "_labels"
+
+
+class VikunjaTaskBucketSensor(VikunjaTaskEntity, SensorEntity):
+    """Representation of a Vikunja Task kanban bucket sensor."""
+
+    def __init__(self, coordinator, base_url, task_id):
+        super().__init__(coordinator, base_url, task_id)
+
+    @property
+    def name(self):
+        """Return the name of the sensor."""
+        return f"{self.name_prefix()} Bucket"
+
+    @property
+    def state(self):
+        """Return the bucket title for this task's kanban column."""
+        bucket_context = self.project_bucket_data()
+        if bucket_context is None:
+            return "N/A"
+
+        bucket_id = bucket_context.get("task_buckets", {}).get(self.task.id)
+        if bucket_id is None:
+            return "No bucket"
+
+        bucket_titles = bucket_context.get("bucket_titles", {})
+        return bucket_titles.get(bucket_id, "Unknown")
+
+    @property
+    def extra_state_attributes(self):
+        """Expose bucket placement and available columns for automations."""
+        bucket_context = self.project_bucket_data()
+        if bucket_context is None:
+            return {
+                "bucket_id": None,
+                "bucket_name": None,
+                "project_view_id": None,
+                "available_buckets": [],
+            }
+
+        bucket_titles = bucket_context.get("bucket_titles", {})
+        bucket_id = bucket_context.get("task_buckets", {}).get(self.task.id)
+        bucket_name = bucket_titles.get(bucket_id) if bucket_id is not None else None
+        available_buckets = [
+            {"id": bid, "title": title}
+            for bid, title in sorted(
+                bucket_titles.items(),
+                key=lambda item: (item[1] or "").lower(),
+            )
+        ]
+        return {
+            "bucket_id": bucket_id,
+            "bucket_name": bucket_name,
+            "project_view_id": bucket_context.get("view_id"),
+            "available_buckets": available_buckets,
+        }
+
+    @property
+    def icon(self):
+        """Icon for the sensor."""
+        return "mdi:view-column"
+
+    @property
+    def unique_id(self) -> str:
+        return self.id_prefix() + "_bucket"

@@ -8,6 +8,7 @@ from pyvikunja.api import VikunjaAPI, APIError
 from custom_components.vikunja import LOGGER
 from custom_components.vikunja.const import (
     CONF_TASKS_AS_DEVICES,
+    DATA_BUCKETS_KEY,
     DATA_PROJECTS_KEY,
     DATA_TASKS_KEY,
     CONF_HIDE_DONE,
@@ -45,10 +46,36 @@ class VikunjaDataUpdateCoordinator(DataUpdateCoordinator):
         # Check if this specific project is in the selected list
         return str(project_id) in selected_projects
 
+    async def _async_fetch_project_bucket_data(self, project_id: int) -> dict | None:
+        """Build bucket title and task placement maps for a project's default kanban view."""
+        full_project = await self._vikunja_api.get_project(project_id)
+        kanban_view = full_project.get_default_kanban_view()
+        if kanban_view is None or kanban_view.id is None:
+            LOGGER.debug("Project %s has no kanban view; skipping bucket fetch", project_id)
+            return None
+
+        buckets = await self._vikunja_api.get_project_buckets(project_id, kanban_view.id)
+        bucket_titles = {bucket.id: bucket.title for bucket in buckets if bucket.id is not None}
+        task_buckets = await self._vikunja_api.get_kanban_task_bucket_map(
+            project_id, kanban_view.id
+        )
+        LOGGER.debug(
+            "Project %s kanban view %s: %s buckets, %s task placements",
+            project_id,
+            kanban_view.id,
+            len(bucket_titles),
+            len(task_buckets),
+        )
+        return {
+            "view_id": kanban_view.id,
+            "bucket_titles": bucket_titles,
+            "task_buckets": task_buckets,
+        }
+
     async def _async_update_data(self):
         """Fetch data from Vikunja API."""
         try:
-            async with async_timeout.timeout(10):
+            async with async_timeout.timeout(30):
                 LOGGER.info("Fetching projects from Vikunja API...")
                 all_projects = await self._vikunja_api.get_projects()
                 LOGGER.info(f"Fetched {len(all_projects)} total projects from API.")
@@ -65,7 +92,7 @@ class VikunjaDataUpdateCoordinator(DataUpdateCoordinator):
                 current_projects = set(self.data[DATA_PROJECTS_KEY].keys()) if self.data else set()
                 current_tasks = set(self.data[DATA_TASKS_KEY].keys()) if self.data else set()
 
-                result = {DATA_PROJECTS_KEY: {}, DATA_TASKS_KEY: {}}
+                result = {DATA_PROJECTS_KEY: {}, DATA_TASKS_KEY: {}, DATA_BUCKETS_KEY: {}}
                 tasks = {}
 
                 for project in projects:
@@ -79,6 +106,10 @@ class VikunjaDataUpdateCoordinator(DataUpdateCoordinator):
 
                         if task.id not in tasks.keys():
                             tasks[task.id] = task
+
+                    bucket_data = await self._async_fetch_project_bucket_data(project.id)
+                    if bucket_data is not None:
+                        result[DATA_BUCKETS_KEY][project.id] = bucket_data
 
                 LOGGER.info(f"Fetched {len(tasks)} tasks from selected projects.")
                 result[DATA_TASKS_KEY] = tasks
