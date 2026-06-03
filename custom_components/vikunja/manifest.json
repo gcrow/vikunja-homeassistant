@@ -1,14 +1,14 @@
 {
   "domain": "vikunja",
   "name": "Vikunja",
-  "version": "0.17",
+  "version": "0.17-dev1",
   "documentation": "https://github.com/joeShuff/vikunja-homeassistant",
   "issue_tracker": "https://github.com/joeShuff/vikunja-homeassistant/issues",
   "codeowners": [
     "@joeShuff"
   ],
   "requirements": [
-    "pyvikunja==0.23"
+    "pyvikunja@git+https://github.com/gcrow/pyvikunja.git@8104b42"
   ],
   "config_flow": true,
   "integration_type": "service",
