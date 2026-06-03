@@ -2,7 +2,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from pyvikunja.api import VikunjaAPI
 
-from custom_components.vikunja.const import CONF_TASKS_AS_DEVICES, LOGGER
+from custom_components.vikunja.const import CONF_TASKS_AS_DEVICES, DATA_TASKS_KEY, DOMAIN, LOGGER
 from custom_components.vikunja.sensors.TaskSensors import *
 
 
@@ -15,6 +15,7 @@ def get_sensors_for_task(coordinator, base_url, task_id):
         VikunjaTaskPrioritySensor(coordinator, base_url, task_id),
         VikunjaTaskAssigneeSensor(coordinator, base_url, task_id),
         VikunjaTaskLabelsSensor(coordinator, base_url, task_id),
+        VikunjaTaskBucketSensor(coordinator, base_url, task_id),
     ]
 
 
